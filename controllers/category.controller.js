@@ -75,7 +75,7 @@ export async function createCategory(request, response) {
         });
 
     } catch (error) {
-        return response.status(500).json({
+        return response.status(200).json({
             message: error.message || error,
             error: true,
             success: false
@@ -89,16 +89,31 @@ export async function getCategories(request, response) {
         const categories = await CategoryModel.find();
         const categoryMap = {};
 
+        // Step 1: Create map of all categories
         categories.forEach(cat => {
-            categoryMap[cat._id] = { ...cat._doc, children: [] };
+            categoryMap[cat._id.toString()] = {
+                ...cat._doc,
+                children: []
+            };
         });
 
+        // Step 2: Build parent-child structure
         const rootCategories = [];
+
         categories.forEach(cat => {
             if (cat.parentId) {
-                categoryMap[cat.parentId].children.push(categoryMap[cat._id]);
+                const parentId = cat.parentId.toString();
+
+                // Same logic as before, just safe
+                if (categoryMap[parentId]) {
+                    categoryMap[parentId].children.push(
+                        categoryMap[cat._id.toString()]
+                    );
+                }
             } else {
-                rootCategories.push(categoryMap[cat._id]);
+                rootCategories.push(
+                    categoryMap[cat._id.toString()]
+                );
             }
         });
 
@@ -202,16 +217,34 @@ export async function removeImageFromCloudinary(request, response) {
 
     const imageName = image.split(".")[0];
 
-    const res = await cloudinary.uploader.destroy(
-        imageName,
-        (error, result) => {
-            // console.log(error, res)
-        }
-    );
+    if (imageName) {
+        try {
+            const result = await cloudinary.uploader.destroy(imageName);
 
-    if (res) {
-        response.status(200).send(res);
+            if (result.result === "ok") {
+                return response.status(200).json({
+                    error: false,
+                    success: true,
+                    message: "Image deleted successfully",
+                });
+            }
+
+            return response.status(400).json({
+                error: true,
+                success: false,
+                message: "Image not found on Cloudinary",
+            });
+
+        } catch (error) {
+            console.error(error);
+            return response.status(500).json({
+                error: true,
+                success: false,
+                message: "Cloudinary delete failed",
+            });
+        }
     }
+
 }
 
 export async function deleteCategory(request, response) {
@@ -279,40 +312,41 @@ export async function deleteCategory(request, response) {
 }
 
 export async function updatedCategory(request, response) {
-  try {
-    const category = await CategoryModel.findByIdAndUpdate(
-      request.params.id,
-      {
-        name: request.body.name,
-        images: imagesArr.length>0? imagesArr[0]:request.body.images,
-        parentId: request.body.parentId,
-        parentCatName: request.body.parentCatName
-      },
-      { new: true } // Returns the updated document
-    );
+    try {
+        const category = await CategoryModel.findByIdAndUpdate(
+            request.params.id,
+            {
+                name: request.body.name,
+                images: imagesArr.length > 0 ? imagesArr[0] : request.body.images,
+                parentId: request.body.parentId,
+                parentCatName: request.body.parentCatName
+            },
+            { new: true } // Returns the updated document
+        );
 
-    if (!category) {
-      return response.status(500).json({
-        message: "Category cannot be updated!", // Or: "Category not found!"
-        success: false,
-        error: true
-      });
+        if (!category) {
+            return response.status(500).json({
+                message: "Category cannot be updated!", // Or: "Category not found!"
+                success: false,
+                error: true
+            });
+        }
+
+        // Clear the images array (assuming this is necessary global/scoped state cleanup)
+        imagesArr = [];
+
+        return response.status(200).json({
+            error: false,
+            success: true,
+             message: "Category updated successfully",
+            category: category
+        });
+
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            success: false,
+            error: true
+        });
     }
-    
-    // Clear the images array (assuming this is necessary global/scoped state cleanup)
-    imagesArr = []; 
-
-    return response.status(200).json({
-      error: false,
-      success: true,
-      category: category
-    });
-
-  } catch (error) {
-    return response.status(500).json({
-      message: error.message || error,
-      success: false,
-      error: true
-    });
-  }
 }

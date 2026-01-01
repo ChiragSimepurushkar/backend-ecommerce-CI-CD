@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const addressSchema = mongoose.Schema({
-    address_line: {
+    address_line1: {
         type: String,
         default: ""
     },
@@ -21,19 +21,30 @@ const addressSchema = mongoose.Schema({
     },
     mobile: {
         type: Number,
-        default:null
+        default: null
     },
     status: {
         type: Boolean,
-        default:true
+        default: true
+    },
+    selected: {
+        type: Boolean,
+        default: true
+    },
+    addressType: {
+        type: String,
+        enum: ["Home", "Work"],
+    },
+    landmark: {
+        type: String,
     },
     userId: {
-        type: mongoose.Schema.ObjectId,
-        default:""
+        type: String,
+        default: ""
     },
 },
     { timestamps: true }
 )
 
-const AddressModel = mongoose.model("address",addressSchema);
+const AddressModel = mongoose.model("address", addressSchema);
 export default AddressModel;

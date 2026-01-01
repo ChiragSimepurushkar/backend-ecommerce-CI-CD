@@ -7,6 +7,7 @@ import generatedAccessToken from '../utils/generatedAccessToken.js';
 import generatedRefreshToken from '../utils/generatedRefreshToken.js';
 import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
+import ReviewModel from '../models/review.model.js';
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CONFIG_CLOUD_NAME,
@@ -134,6 +135,86 @@ export async function verifyEmailController(request, response) {
     }
 }
 
+export async function authWithGoogle(request, response) {
+    const { name, email, password, avatar, mobile, role } = request.body;
+    try {
+        const existingUser = await UserModel.findOne({ email: email });
+
+        if (!existingUser) {
+            const user = await UserModel.create({
+                name: name,
+                mobile: mobile,
+                email: email,
+                password: "null",
+                avatar: avatar,
+                role: role,
+                verify_email: true,
+                signUpWithGoogle: true,
+            });
+            await user.save()
+
+            const accesstoken = await generatedAccessToken(user._id);
+            const refreshToken = await generatedRefreshToken(user._id);
+
+            const updateUser = await UserModel.findByIdAndUpdate(user?._id, {
+                last_login_date: new Date()
+            });
+
+            const cookiesOption = {
+                httpOnly: true,
+                secure: true,
+                sameSite: "None"
+            };
+
+            response.cookie('accesstoken', accesstoken, cookiesOption);
+            response.cookie('refreshToken', refreshToken, cookiesOption);
+
+            return response.json({
+                message: "Login successfully",
+                error: false,
+                success: true,
+                data: {
+                    accesstoken,
+                    refreshToken
+                }
+            });
+        } else {
+            const accesstoken = await generatedAccessToken(existingUser._id);
+            const refreshToken = await generatedRefreshToken(existingUser._id);
+
+            const updateUser = await UserModel.findByIdAndUpdate(existingUser?._id, {
+                last_login_date: new Date()
+            });
+
+            const cookiesOption = {
+                httpOnly: true,
+                secure: true,
+                sameSite: "None"
+            };
+
+            response.cookie('accesstoken', accesstoken, cookiesOption);
+            response.cookie('refreshToken', refreshToken, cookiesOption);
+
+            return response.json({
+                message: "Login successfully",
+                error: false,
+                success: true,
+                data: {
+                    accesstoken,
+                    refreshToken
+                }
+            });
+        }
+
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
+        })
+    }
+}
+
 export async function loginUserController(request, response) {
     try {
         const { email, password } = request.body;
@@ -173,7 +254,7 @@ export async function loginUserController(request, response) {
             });
         }
 
-        const accessToken = await generatedAccessToken(user._id);
+        const accesstoken = await generatedAccessToken(user._id);
         const refreshToken = await generatedRefreshToken(user._id);
 
         const updateUser = await UserModel.findByIdAndUpdate(user?._id, {
@@ -186,7 +267,7 @@ export async function loginUserController(request, response) {
             sameSite: "None"
         };
 
-        response.cookie('accessToken', accessToken, cookiesOption);
+        response.cookie('accesstoken', accesstoken, cookiesOption);
         response.cookie('refreshToken', refreshToken, cookiesOption);
 
         return response.json({
@@ -194,7 +275,7 @@ export async function loginUserController(request, response) {
             error: false,
             success: true,
             data: {
-                accessToken,
+                accesstoken,
                 refreshToken
             }
         });
@@ -380,7 +461,13 @@ export async function updateUserDetails(request, response) {
             message: "User Updated successfully",
             error: false,
             success: true,
-            user: updateUser
+            user: {
+                name: updateUser?.name,
+                _id: updateUser?._id,
+                email: updateUser?.email,
+                mobile: updateUser?.mobile,
+                avatar: updateUser?.avatar
+            }
         });
     } catch (error) {
         return response.status(500).json({
@@ -412,7 +499,7 @@ export async function forgotPasswordController(request, response) {
 
             await sendEmailFun(
                 user.email, // Argument 1: to (using user.email from the database)
-                "Verify email from Ecommerce App", // Argument 2: subject
+                "Verify OTP from Ecommerce App", // Argument 2: subject
                 "", // Argument 3: text
                 VerificationEmail(user.name, verifyCode) // Argument 4: html
             );
@@ -488,7 +575,7 @@ export async function verifyForgotPasswordOtp(request, response) {
 // reset password
 export async function resetPassword(request, response) {
     try {
-        const { email, newPassword, confirmPassword } = request.body;
+        const { email, oldPassword, newPassword, confirmPassword } = request.body;
 
         if (!email || !newPassword || !confirmPassword) {
             return response.status(400).json({
@@ -506,6 +593,18 @@ export async function resetPassword(request, response) {
                 success: false
             });
         }
+        if (user?.signUpWithGoogle === false) {
+            if (oldPassword) {
+                const checkPassword = await bcryptjs.compare(oldPassword, user.password);
+                if (!checkPassword) {
+                    return response.status(400).json({
+                        message: "Your Old Password is Wrong",
+                        error: true,
+                        success: false,
+                    });
+                }
+            }
+        }
 
         if (newPassword !== confirmPassword) {
             return response.status(400).json({
@@ -518,6 +617,7 @@ export async function resetPassword(request, response) {
         const hashPassword = await bcryptjs.hash(newPassword, salt);
 
         user.password = hashPassword;
+        user.signUpWithGoogle = false;
         await user.save();
 
         return response.json({
@@ -588,22 +688,167 @@ export async function refreshToken(request, response) {
 
 // get-login-user-details
 export async function userDetails(request, response) {
-  try {
-    const userId = request.userId; // Retrieved from the 'auth' middleware
+    try {
+        const userId = request.userId; // Retrieved from the 'auth' middleware
 
-    const user = await UserModel.findById(userId).select('-password -refresh_token');
+        const user = await UserModel
+            .findById(request.userId)
+            .populate('address_details')
+            .select('-password -refresh_token');
 
-    return response.json({
-      message: 'user details',
-      data: user,
-      error: false,
-      success: true
-    });
-  } catch (error) {
-    return response.status(500).json({
-      message: "Something is wrong",
-      error: true,
-      success: false
-    });
-  }
+
+        return response.json({
+            message: 'user details',
+            data: user,
+            error: false,
+            success: true
+        });
+    } catch (error) {
+        return response.status(500).json({
+            message: "Something is wrong",
+            error: true,
+            success: false
+        });
+    }
+}
+
+// review controller
+export async function addReview(request, response) {
+    try {
+        const { image, userName, review, rating, userId, productId } = request.body;
+
+        const userReview = new ReviewModel({
+            image: image,
+            userName: userName,
+            review: review,
+            rating: rating,
+            userId: userId,
+            productId: productId
+        });
+
+        await userReview.save();
+
+        return response.status(200).json({
+            message: "Review added successfully",
+            error: false,
+            success: true,
+        });
+
+    } catch (error) {
+        return response.status(500).json({
+            message: "Something is wrong",
+            error: true,
+            success: false
+        });
+    }
+}
+
+// get reviews
+export async function getReviews(request, response) {
+    try {
+        const productId = request.query.productId;
+
+        const reviews = await ReviewModel.find({ productId: productId });
+
+        if (!reviews) {
+            return response.status(400).json(
+                { error: true, success: false });
+        }
+        return response.status(200).json(
+            { error: false, success: true, reviews: reviews }
+        );
+
+    } catch (error) {
+        return response.status(500).json({
+            message: "Something is wrong",
+            error: true,
+            success: false
+        });
+    }
+}
+
+
+
+export async function getAllReviews(request, response) {
+    try {
+        const reviews = await ReviewModel.find();
+
+        if (!reviews) {
+            return response.status(400).json({
+                error: true,
+                success: false
+            })
+        }
+
+        return response.status(200).json({
+            error: false,
+            success: true,
+            reviews: reviews
+        })
+    } catch (error) {
+        return response.status(500).json({
+            message: "Something is wrong",
+            error: true,
+        })
+    }
+}
+
+
+export async function getAllUsers(request, response) {
+    try {
+        const users = await UserModel.find();
+
+        if (!users) {
+            return response.status(400).json({
+                error: true,
+                success: false
+            })
+        }
+
+        return response.status(200).json({
+            error: false,
+            success: true,
+            users: users
+        })
+    } catch (error) {
+        return response.status(500).json({
+            message: "Something is wrong",
+            error: true,
+        })
+    }
+}
+
+
+
+
+export async function deleteMultiple(request, response) {
+    const { ids } = request.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return response.status(400).json({
+            error: true,
+            success: false,
+            message: 'Invalid input. Please provide an array of IDs.'
+        });
+    }
+
+    try {
+       // After all images are deleted, delete the products from database
+        const deleteResult = await UserModel.deleteMany({ _id: { $in: ids } });
+
+        return response.status(200).json({
+            message: `${deleteResult.deletedCount} user(s) deleted successfully`,
+            error: false,
+            success: true,
+            deletedCount: deleteResult.deletedCount
+        });
+
+    } catch (error) {
+        console.error("Error in deleteMultiple:", error);
+        return response.status(500).json({
+            message: error.message || "An error occurred while deleting users",
+            error: true,
+            success: false
+        });
+    }
 }

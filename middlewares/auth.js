@@ -4,6 +4,9 @@ const auth = async (request, response, next) => {
     try {
         const token = request.cookies.accessToken || request?.headers?.authorization?.split(" ")[1];
 
+        // if (!token) {
+        //     token = request.query.token;
+        // }
         if (!token) {
             return response.status(401).json({
                 message: "Provide token"
@@ -24,9 +27,26 @@ const auth = async (request, response, next) => {
         next();
 
     } catch (error) {
-        // Catch block handles any error during token extraction or verification
-        return response.status(500).json({
-            message: "You have not login", // error.message || error,
+        // Check if error is JWT specific
+        if (error.name === 'TokenExpiredError') {
+            return response.status(401).json({
+                message: "Token has expired",
+                error: true,
+                success: false
+            });
+        }
+        
+        if (error.name === 'JsonWebTokenError') {
+            return response.status(401).json({
+                message: "Invalid token",
+                error: true,
+                success: false
+            });
+        }
+
+        // Generic error
+        return response.status(401).json({ // Changed from 500 to 401
+            message: "You have not login",
             error: true,
             success: false
         });

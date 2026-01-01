@@ -2,11 +2,13 @@ import mongoose from "mongoose";
 
 const myListSchema = new mongoose.Schema({
     productId: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,  // Changed from String
+        ref: "Product",
         required: true
     },
     userId: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,  // Changed from String
+        ref: "User",
         required: true
     },
     productTitle: {

@@ -5,7 +5,7 @@ const generatedRefreshToken = async (userId) => {
   const token = await jwt.sign(
     { id: userId },
     process.env.SECRET_KEY_REFRESH_TOKEN,
-    { expiresIn: '30d' }
+    { expiresIn: '2d' }
   );
 
   const updateRefreshTokenUser = await UserModel.updateOne(

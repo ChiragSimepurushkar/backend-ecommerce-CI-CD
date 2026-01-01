@@ -72,6 +72,10 @@ const productSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    sale: {
+      type: Number,
+      default: 0,
+    },
     productRam: [
       {
         type: String,
@@ -90,9 +94,23 @@ const productSchema = mongoose.Schema(
         default: null,
       },
     ],
+     bannerTitlename: {
+      type: String,
+   
+    },
+     bannerimages: [
+      {
+        type: String,
+       
+      },
+    ],
     dateCreated: {
       type: Date,
       default: Date.now,
+    },
+     isDisplayOnHomeBanner: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }

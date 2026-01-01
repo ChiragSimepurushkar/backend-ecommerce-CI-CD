@@ -10,6 +10,11 @@ import categoryRouter from './route/category.route.js';
 import productRouter from './route/product.route.js';
 import cartRouter from './route/cart.route.js';
 import myListRouter from './route/mylist.route.js';
+import addressRouter from './route/address.route.js';
+import homeSlidesRouter from './route/homeSlides.route.js';
+import bannerV1Router from './route/bannerV1.route.js';
+import blogRouter from './route/blog.route.js';
+import orderRouter from './route/order.route.js';
 
 dotenv.config();
 
@@ -27,23 +32,27 @@ app.use(helmet({
   crossOriginResourcePolicy: false
 }));
 
-app.get("/",(request,response)=>{
+app.get("/", (request, response) => {
   response.json({
-    message:"server is running"+ process.env.PORT
+    message: "server is running" + process.env.PORT
   })
 })
 
-app.use('/api/user',userRouter)
-app.use('/api/category',categoryRouter)
-app.use('/api/product',productRouter)
-app.use('/api/cart',cartRouter)
-app.use('/api/myList',myListRouter)
+app.use('/api/user', userRouter)
+app.use('/api/category', categoryRouter)
+app.use('/api/product', productRouter)
+app.use('/api/cart', cartRouter)
+app.use('/api/myList', myListRouter)
+app.use('/api/address', addressRouter)
+app.use('/api/homeSlides', homeSlidesRouter)
+app.use('/api/bannerV1', bannerV1Router)
+app.use('/api/blog', blogRouter)
+app.use('/api/order', orderRouter)
 
 
 
-
-connectDB().then(()=>{
-  app.listen(process.env.PORT, ()=>{
-    console.log("Server is running on ",process.env.PORT)
+connectDB().then(() => {
+  app.listen(process.env.PORT, () => {
+    console.log("Server is running on ", process.env.PORT)
   })
 })

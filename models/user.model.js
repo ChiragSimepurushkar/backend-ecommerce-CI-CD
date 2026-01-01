@@ -49,12 +49,6 @@ const userSchema = mongoose.Schema({
             ref: 'address'
         },
     ],
-    shopping_cart: [
-        {
-            type: mongoose.Schema.ObjectId,
-            ref: 'cartProduct'
-        },
-    ],
     orderHistory: [
         {
             type: mongoose.Schema.ObjectId,
@@ -72,9 +66,13 @@ const userSchema = mongoose.Schema({
         enum: ["ADMIN", "USER"],
         default: "USER"
     },
+    signUpWithGoogle: {
+        type: Boolean,
+        default: false
+    },
 },
     { timestamps: true }
 )
 
-const UserModel = mongoose.model("user",userSchema);
+const UserModel = mongoose.model("user", userSchema);
 export default UserModel;

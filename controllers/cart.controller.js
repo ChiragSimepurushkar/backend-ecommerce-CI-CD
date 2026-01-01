@@ -92,7 +92,7 @@ export const getCartItemController = async (request, response) => {
 export const updateCartItemQtyController = async (request, response) => {
     try {
         const userId = request.userId; // Retrieved from auth middleware
-        const { _id, qty } = request.body;
+        const { _id, qty,subTotal } = request.body;
 
         // --- 1. Initial Validation ---
         if (!_id || !qty) {
@@ -108,8 +108,9 @@ export const updateCartItemQtyController = async (request, response) => {
                 userId: userId // Ensure the user only updates their own item
             },
             {
-                quantity: qty
-            }
+                quantity: qty,
+                subTotal:subTotal
+            },{new:true}
         );
 
         // --- 3. Send Success Response ---
@@ -129,13 +130,58 @@ export const updateCartItemQtyController = async (request, response) => {
     }
 };
 
+// export const deleteCartItemQtyController = async (request, response) => {
+
+//     try {
+//         const userId = request.userId; // Retrieved from auth middleware
+//         const { id  } = request.params;
+
+//         // --- 1. Initial Validation ---
+//         if (!id) {
+//             return response.status(400).json({
+//                 message: "Provide _id",
+//                 error: true,
+//                 success: false
+//             });
+//         }
+
+//         // --- 2. Delete Cart Item ---
+//         const deleteCartItem = await CartProductModel.deleteOne({
+//             _id: id,
+//             userId: userId // CRITICAL: Ensures the user only deletes their own item
+//         });
+
+//         // --- 3. Check Deletion Result ---
+//         if (!deleteCartItem) { // Check the result object returned by deleteOne
+//             return response.status(404).json({
+//                 message: "The product in the cart is not found",
+//                 error: true,
+//                 success: false
+//             });
+//         }
+//         return response.json({
+//             message: "Item remove",
+//             error: false,
+//             success: true,
+//             data: deleteCartItem
+//         });
+
+//     } catch (error) {
+//         return response.status(500).json({
+//             message: error.message || error,
+//             error: true,
+//             success: false
+//         });
+//     }
+// };
+
 export const deleteCartItemQtyController = async (request, response) => {
     try {
         const userId = request.userId; // Retrieved from auth middleware
-        const { _id, productId } = request.body;
+        const { id } = request.params;
 
         // --- 1. Initial Validation ---
-        if (!_id) {
+        if (!id) {
             return response.status(400).json({
                 message: "Provide _id",
                 error: true,
@@ -145,7 +191,7 @@ export const deleteCartItemQtyController = async (request, response) => {
 
         // --- 2. Delete Cart Item ---
         const deleteCartItem = await CartProductModel.deleteOne({
-            _id: _id,
+            _id: id,
             userId: userId // CRITICAL: Ensures the user only deletes their own item
         });
 
@@ -157,21 +203,6 @@ export const deleteCartItemQtyController = async (request, response) => {
                 success: false
             });
         }
-        const user = await UserModel.findOne({
-            _id: userId
-        });
-
-        const cartItems = user?.shopping_cart;
-
-        const updatedUserCart = [
-            ...cartItems.slice(0, cartItems.indexOf(productId)),
-            ...cartItems.slice(cartItems.indexOf(productId) + 1)
-        ];
-
-        user.shopping_cart = updatedUserCart;
-
-        await user.save();
-        // --- 4. Send Success Response ---
         return response.json({
             message: "Item remove",
             error: false,

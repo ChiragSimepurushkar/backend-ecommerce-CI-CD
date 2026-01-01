@@ -14,6 +14,15 @@ export const addToMyListController = async (request, response) => {
         discount 
     } = request.body;
 
+    // Validate userId exists
+    if (!userId) {
+      return response.status(401).json({
+        message: "User not authenticated",
+        error: true,
+        success: false
+      });
+    }
+
     // --- 1. Check for Duplicate Item ---
     const item = await MyListModel.findOne({
       userId: userId,
@@ -23,7 +32,7 @@ export const addToMyListController = async (request, response) => {
     if (item) {
       return response.status(400).json({
         message: "Item already in my list",
-        error: true, // Added error flag for consistency
+        error: true,
         success: false
       });
     }
@@ -48,7 +57,7 @@ export const addToMyListController = async (request, response) => {
       error: false,
       success: true,
       message: "The product saved in the my list",
-      data: save // Optionally return the saved document
+      data: save
     });
 
   } catch (error) {
@@ -62,24 +71,35 @@ export const addToMyListController = async (request, response) => {
 
 export const deleteToMyListController = async (request, response) => {
   try {
-    const myListId = request.params.id; // Assuming ID is passed in URL params
+    const myListId = request.params.id;
+    const userId = request.userId; // Get authenticated user
 
-    // 1. Check if item exists (Optional pre-check for better error message)
-    const myListItem = await MyListModel.findById(myListId);
+    // Validate userId exists
+    if (!userId) {
+      return response.status(401).json({
+        message: "User not authenticated",
+        error: true,
+        success: false
+      });
+    }
+
+    // 1. Find the item and verify it belongs to this user
+    const myListItem = await MyListModel.findOne({
+      _id: myListId,
+      userId: userId // CRITICAL: Ensure user owns this item
+    });
 
     if (!myListItem) {
       return response.status(404).json({
         error: true,
         success: false,
-        message: "The item with this given id was not found"
+        message: "The item with this given id was not found or you don't have permission"
       });
     }
 
-    // 2. Attempt to delete the item
+    // 2. Delete the item
     const deletedItem = await MyListModel.findByIdAndDelete(myListId);
 
-    // 3. Final check after deletion attempt (Should be redundant if initial check passed, 
-    // but useful if findById failed for other reasons)
     if (!deletedItem) {
       return response.status(404).json({
         error: true,
@@ -88,7 +108,7 @@ export const deleteToMyListController = async (request, response) => {
       });
     }
 
-    // 4. Send Success Response
+    // 3. Send Success Response
     return response.status(200).json({
       error: false,
       success: true,
@@ -108,6 +128,15 @@ export const getMyListController = async (request, response) => {
   try {
     const userId = request.userId; // Retrieved from auth middleware
 
+    // Validate userId exists
+    if (!userId) {
+      return response.status(401).json({
+        message: "User not authenticated",
+        error: true,
+        success: false
+      });
+    }
+
     const myListItems = await MyListModel.find({
       userId: userId
     });
@@ -126,4 +155,3 @@ export const getMyListController = async (request, response) => {
     });
   }
 };
-
