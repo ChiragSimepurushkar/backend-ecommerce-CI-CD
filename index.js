@@ -49,7 +49,11 @@ app.use('/api/bannerV1', bannerV1Router)
 app.use('/api/blog', blogRouter)
 app.use('/api/order', orderRouter)
 
-
+app.get("/test", async(req, res)=>{
+  res.json({
+    msg:"test was Successful!!"
+  })
+});
 
 connectDB().then(() => {
   app.listen(process.env.PORT, () => {
