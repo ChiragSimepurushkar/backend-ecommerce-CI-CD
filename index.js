@@ -51,7 +51,7 @@ app.use('/api/order', orderRouter)
 
 app.get("/test", async(req, res)=>{
   res.json({
-    msg:"UPDATE: test was Successful!!!"
+    msg:"UPDATE:test was Successful!!!"
   })
 });
 
